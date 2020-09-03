@@ -509,7 +509,7 @@ namespace rotors{
                     bool ortogonality_flag_double = false;
                     for(int i=0; i<N; i++){
                         if((order_list_row[i] != order_list_col[i]) || (parity_list_row[i] != parity_list_col[i])){
-                            if(i!=n) ortogonality_flag_single = true;
+                            ortogonality_flag_single = true;
                             if(i!=n && i!=n+1) ortogonality_flag_double = true;
                         }
                     }
