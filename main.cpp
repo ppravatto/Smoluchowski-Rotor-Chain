@@ -6,43 +6,47 @@
 #include <limits.h>
 #include <omp.h>
 #include "rotors.h"
+#include "input_parser.h"
 
 using namespace std;
 
-int main(){
-    
-    int N_rot = 3;                                      //Set total number of rotors
+int main(int argc, char** argv){
 
+    if(argc==1){
+        std::cout << "ERROR (main.cpp): No input file selected" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    std::string filename = argv[1];
+    std::cout << "Selected input file: " << filename << std::endl << std::endl;
+
+    input::INPUT_PARSER datafile(filename);             //Load input file with the input parser
+    int N_rot = datafile.load();                        //Set total number of rotors
     int N = N_rot-1;                                    //Number od dihedral angles
+
     double * D = new double [N_rot];                    //Allocate an array to store the diffusion coefficients for each rotor
     double * dihedral_barrier = new double [N];         //Allocate an array to store the barrier height for each dihedral
     int * dihedral_num_mins = new int [N];              //Allocate an array to store the type of potential function for each dihedral
     int * single_dihedral_basis_order = new int [N];    //Allocate an array to store the number of basis functions to use for generating each dihedral basis set
     int * composite_basis_set_cutoff = new int [N];     //Allocate an array to store the total number of single rotor basis functions to be use for generating the composit basis set
 
-    int single_dihedral_print = 5;                      //Number of single dihedral eigenvalues to print
-    int npt_int_single = 10000;                         //Number of integration points for the single dihedral
-    int key_int_single = 6;                             //QAG key for the single dihedral integration
-    double abs_int_single = 1e-10;                      //Absolute error for the single dihedral integration
-    double rel_int_single = 1e-10;                      //Relative error for the single dihedral integration
+    //Retrieve system data from input parser 
+    datafile.copy_system_data(
+                                dihedral_num_mins,
+                                single_dihedral_basis_order,
+                                composite_basis_set_cutoff,
+                                dihedral_barrier,
+                                D
+                            );
+    
+    //Retrieve integration parameters for the single dihedral from input parser 
+    int npt_int_single, key_int_single;
+    double abs_int_single, rel_int_single;
+    datafile.copy_integrator_data(&npt_int_single, &key_int_single, &abs_int_single, &rel_int_single, true);
 
-    int coupled_dihedral_print = 3;                     //Number of coupled dihedrals eigenvalues to print
-    int npt_int_system = 10000;                         //Number of integration points for the coupled dihedrals
-    int key_int_system = 6;                             //QAG key for the coupled dihedrals integration
-    double abs_int_system = 1e-10;                      //Absolute error for the coupled dihedrals integration
-    double rel_int_system = 1e-10;                      //Relative error for the coupled dihedrals integration
-
-    //Inizializzazione di test
-    for(int i=0; i < N_rot; i++){
-        D[i] = 1.;
-        if(i<N_rot-1){
-            dihedral_barrier[i] = 10.;
-            dihedral_num_mins[i] = 1;
-            single_dihedral_basis_order[i] = 100;
-            composite_basis_set_cutoff[i] = 4;
-        }
-    }
-    dihedral_num_mins[0] = 2;
+    //Retrieve integration parameters for the single dihedral from input parser 
+    int npt_int_system, key_int_system;
+    double abs_int_system, rel_int_system;
+    datafile.copy_integrator_data(&npt_int_system, &key_int_system, &abs_int_system, &rel_int_system, false);
 
     for(int i=0; i<N; i++){
         if(composite_basis_set_cutoff[i]>single_dihedral_basis_order[i]){
@@ -58,6 +62,14 @@ int main(){
             exit(EXIT_FAILURE);
         }
         M *= composite_basis_set_cutoff[i];
+    }
+
+    int single_dihedral_print = 5;                          //Number of single dihedral eigenvalues to print
+    int coupled_dihedral_print = (M<10)? int(M/2)-1 : 5;    //Number of coupled dihedrals eigenvalues to print
+    for(int i=0; i<N; i++){
+        if(single_dihedral_basis_order[i] < single_dihedral_print){
+            single_dihedral_print = single_dihedral_basis_order[i];
+        }
     }
 
     cout << "=================================================================" << endl;
@@ -127,7 +139,7 @@ int main(){
     }
     cout << "-----------------------------------------------------------------" << endl << endl;
     
-    rotors::COUPLED_SOLVER System_Solver(N, D, composite_basis_set_cutoff, Isolated_Basis_Set, 10000, 1e-10, 1e-10, 6);
+    rotors::COUPLED_SOLVER System_Solver(N, D, composite_basis_set_cutoff, Isolated_Basis_Set, npt_int_system, abs_int_system, rel_int_system, key_int_system);
     System_Solver.solve(true, false);
     
     cout << "SYSTEM EIGENVALUES:" << endl;
