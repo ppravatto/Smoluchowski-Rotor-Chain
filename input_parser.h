@@ -10,14 +10,22 @@
 
 namespace input{
 
-    const int NUM_COMM = 6;
-    std::string COMMAND_LIST[NUM_COMM] ={
+    const int NUM_COMM = 14;                    //Total number of available commands
+    std::string COMMAND_LIST[NUM_COMM] ={       //Commands list
         "NROT",
         "NUM-MIN",
         "ISOLATED-BASIS",
         "COUPLED-BASIS",
         "BARRIER",
-        "DIFFUSION-COEFF"
+        "DIFFUSION-COEFF",
+        "NPT-INTEG-SINGLE",
+        "ABS-INTEG-SINGLE",
+        "REL-INTEG-SINGLE",
+        "QAG-KEY-SINGLE",
+        "NPT-INTEG-COUPLED",
+        "ABS-INTEG-COUPLED",
+        "REL-INTEG-COUPLED",
+        "QAG-KEY-COUPLED"
     };
 
     template <class T>
@@ -45,7 +53,8 @@ namespace input{
         private:
             std::string filename;
             bool init_flag, load_flag;
-            int num_rot, num_dihed;
+            int num_rot, num_dihed, npt_int_single, npt_int_coupled, key_single, key_coupled;
+            double abs_single, rel_single, abs_coupled, rel_coupled;
             int *basis_single, *basis_coupled, *num_mins;
             double *diffusion, *barrier;
 
@@ -86,6 +95,10 @@ namespace input{
                         barrier[i] = 1.;
                     }
                 }
+                npt_int_single = 10000; npt_int_coupled = 10000;
+                key_single = 6; key_coupled = 6;
+                abs_single = 1e-10; rel_single = 1e-10;
+                abs_coupled = 1e-10; rel_coupled = 1e-10;
             }
 
         public:
@@ -171,6 +184,30 @@ namespace input{
                             case 5:
                                 read_list_line<double>(line, ",", diffusion, num_rot);
                                 break;
+                            case 6:
+                                std::stringstream(line) >> npt_int_single;
+                                break;
+                            case 7:
+                                std::stringstream(line) >> abs_single;
+                                break;
+                            case 8:
+                                std::stringstream(line) >> rel_single;
+                                break;
+                            case 9:
+                                std::stringstream(line) >> key_single;
+                                break;
+                            case 10:
+                                std::stringstream(line) >> npt_int_coupled;
+                                break;
+                            case 11:
+                                std::stringstream(line) >> abs_coupled;
+                                break;
+                            case 12:
+                                std::stringstream(line) >> rel_coupled;
+                                break;
+                            case 13:
+                                std::stringstream(line) >> key_coupled;
+                                break;
                             default:
                                 break;
                         }
@@ -191,6 +228,21 @@ namespace input{
                 math_utils::copy_array<int>(basis_coupled, basis_coupled_, num_dihed);
                 math_utils::copy_array<double>(barrier, barrier_, num_dihed);
                 math_utils::copy_array<double>(diffusion, diffusion_, num_rot);
+            }
+
+            void copy_integrator_data(int* npt_int, int* key, double* abs, double* rel, bool single_flag){
+                if(load_flag==false){
+                    std::cout << "ERROR (input-parser): Input file not loaded yet" << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                if(single_flag==true){
+                    *npt_int = npt_int_single; *key=key_single;
+                    *abs = abs_single; *rel = rel_single;
+                }
+                else{
+                    *npt_int = npt_int_coupled; *key=key_coupled;
+                    *abs = abs_coupled; *rel = rel_coupled;
+                }
             }
     };
 
