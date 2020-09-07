@@ -70,3 +70,4 @@ Keyword | Description | Number of parameters | Type | Default value
 `ABS-INTEG-COUPLED` | Absolute integrator error threshold for the rotor chain | 1 | `double` | 1e-10
 `REL-INTEG-COUPLED` | Relative integrator error threshold for the rotor chain | 1 | `double` | 1e-10
 `QAG-KEY-COUPLED` | GSL key for selecting the QAG integrator order for the rotor chain | 1 | `int` | 6
+`SAVE-VQE` | Setting the flag to `1` or `0` activate or deactivate the generation of a file containing the matrix of sFPS operator integrals on the composite basis set | 1 | `bool` (as `0` or `1`) | 0

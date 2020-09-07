@@ -8,9 +8,17 @@
 #include <sstream>
 #include "math_utils.h"
 
+#ifdef WINDOWS
+#include <direct.h>
+#define GetCurrentDir _getcwd
+#else
+#include <unistd.h>
+#define GetCurrentDir getcwd
+#endif
+
 namespace input{
 
-    const int NUM_COMM = 14;                    //Total number of available commands
+    const int NUM_COMM = 15;                    //Total number of available commands
     std::string COMMAND_LIST[NUM_COMM] ={       //Commands list
         "NROT",
         "NUM-MIN",
@@ -26,6 +34,7 @@ namespace input{
         "ABS-INTEG-COUPLED",
         "REL-INTEG-COUPLED",
         "QAG-KEY-COUPLED"
+        "SAVE-VQE"
     };
 
     template <class T>
@@ -52,7 +61,7 @@ namespace input{
     class INPUT_PARSER{
         private:
             std::string filename;
-            bool init_flag, load_flag;
+            bool init_flag, load_flag, vqe_key;
             int num_rot, num_dihed, npt_int_single, npt_int_coupled, key_single, key_coupled;
             double abs_single, rel_single, abs_coupled, rel_coupled;
             int *basis_single, *basis_coupled, *num_mins;
@@ -99,6 +108,7 @@ namespace input{
                 key_single = 6; key_coupled = 6;
                 abs_single = 1e-10; rel_single = 1e-10;
                 abs_coupled = 1e-10; rel_coupled = 1e-10;
+                vqe_key = false;
             }
 
         public:
@@ -208,6 +218,8 @@ namespace input{
                             case 13:
                                 std::stringstream(line) >> key_coupled;
                                 break;
+                            case 14:
+                                std::stringstream(line) >> vqe_key;
                             default:
                                 break;
                         }
@@ -244,8 +256,23 @@ namespace input{
                     *abs = abs_coupled; *rel = rel_coupled;
                 }
             }
+
+            void get_vqe_settings(bool& vqe_key_){
+                vqe_key_ = vqe_key;
+            }
     };
 
+}
+
+namespace output{
+
+    std::string get_current_dir() {
+        char buff[FILENAME_MAX];
+        GetCurrentDir( buff, FILENAME_MAX );
+        std::string current_working_dir(buff);
+        return current_working_dir;
+    }
+    
 }
 
 #endif

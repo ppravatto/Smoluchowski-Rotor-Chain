@@ -6,7 +6,7 @@
 #include <limits.h>
 #include <omp.h>
 #include "rotors.h"
-#include "input_parser.h"
+#include "ioparser.h"
 
 using namespace std;
 
@@ -18,6 +18,12 @@ int main(int argc, char** argv){
     }
     std::string filename = argv[1];
     std::cout << "Selected input file: " << filename << std::endl << std::endl;
+
+    if(argc>2){
+        std::cout << "WARNING (main.cpp): Too many arguments received, only the first will be considered" << std::endl;
+    }
+
+    std::string base_dir = output::get_current_dir();
 
     input::INPUT_PARSER datafile(filename);             //Load input file with the input parser
     int N_rot = datafile.load();                        //Set total number of rotors
@@ -140,7 +146,15 @@ int main(int argc, char** argv){
     cout << "-----------------------------------------------------------------" << endl << endl;
     
     rotors::COUPLED_SOLVER System_Solver(N, D, composite_basis_set_cutoff, Isolated_Basis_Set, npt_int_system, abs_int_system, rel_int_system, key_int_system);
-    System_Solver.solve(true, false);
+
+    bool vqe_key = false;
+    datafile.get_vqe_settings(vqe_key);
+    if(vqe_key==true){
+        System_Solver.solve(true, false);
+    }
+    else{
+        System_Solver.solve();
+    }    
     
     cout << "SYSTEM EIGENVALUES:" << endl;
     cout << "-----------------------------------------------------------------" << endl;
@@ -152,7 +166,10 @@ int main(int argc, char** argv){
     }
     cout << "-----------------------------------------------------------------" << endl << endl;
     
-    System_Solver.export_vqe_integrals("VQE.txt");
+    if(vqe_key==true){
+        std::string vqe_filename = base_dir + "/VQE.txt";
+        System_Solver.export_vqe_integrals(vqe_filename);
+    }
     
     delete[] D;
     delete[] dihedral_barrier;
