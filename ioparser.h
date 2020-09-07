@@ -33,7 +33,7 @@ namespace input{
         "NPT-INTEG-COUPLED",
         "ABS-INTEG-COUPLED",
         "REL-INTEG-COUPLED",
-        "QAG-KEY-COUPLED"
+        "QAG-KEY-COUPLED",
         "SAVE-VQE"
     };
 
@@ -220,6 +220,7 @@ namespace input{
                                 break;
                             case 14:
                                 std::stringstream(line) >> vqe_key;
+                                break;
                             default:
                                 break;
                         }
