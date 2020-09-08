@@ -611,6 +611,10 @@ namespace rotors{
 
             double get_subspace_eigfunc(double* theta, int order, bool function_parity){
                 check_solve_status();
+                if(symmetry_flag==true && (function_parity != parity)){
+                    std::cout << "ERROR (coupled_rotors.h - COUPLED_SOLVER): The required eigenfunction has not the selected symmetry" << std::endl;
+                    exit(EXIT_FAILURE);
+                }
                 int N_limit = (function_parity==true)? N_gerade : N_ungerade;
                 check_access_errors(order, N_limit);
                 double sum = 0.;
@@ -623,9 +627,55 @@ namespace rotors{
 
             double get_subspace_eigenval(int order, bool function_parity){
                 check_solve_status();
+                if(symmetry_flag==true && (function_parity != parity)){
+                    std::cout << "ERROR (coupled_rotors.h - COUPLED_SOLVER): The required eigenvalue has not the selected symmetry" << std::endl;
+                    exit(EXIT_FAILURE);
+                }
                 int N_limit = (function_parity==true)? N_gerade : N_ungerade;
                 check_access_errors(order, N_limit);
                 return (function_parity==true)? eigval_gerade[order] : eigval_ungerade[order];
+            }
+
+            void export_eigenval_list(std::string filename){
+                std::ofstream datafile;
+                datafile.open(filename);
+                if(symmetry_flag==true){
+                    int N_limit = (parity==true)? N_gerade : N_ungerade;
+                    for(int i=0; i<N_limit; i++){
+                        std::string parity_label = (parity==true)? "G" : "U";
+                        double eigval = (parity==true)? eigval_gerade[i] : eigval_ungerade[i];
+                        datafile << i << '\t' << parity_label << '\t' << eigval << std::endl;
+                    }
+                }
+                else{
+                    int index_gerade=0, index_ungerade=0, index_sum=0;
+                    while(index_sum < N_comp){
+                        if(index_gerade>=N_gerade || index_ungerade>=N_ungerade){
+                            break;
+                        }
+                        if(eigval_gerade[index_gerade] < eigval_ungerade[index_ungerade]){
+                            datafile << index_gerade << '\t' << "G" << '\t' << eigval_gerade[index_gerade] << std::endl;
+                            index_gerade++;
+                        }
+                        else{
+                            datafile << index_ungerade << '\t' << "U" << '\t' << eigval_ungerade[index_ungerade] << std::endl;
+                            index_ungerade++;
+                        }
+                        index_sum = index_gerade + index_ungerade;
+                    }
+                    while(index_sum < N_comp){
+                        if(index_gerade>=N_gerade){
+                            datafile << index_ungerade << '\t' << "U" << '\t' << eigval_ungerade[index_ungerade] << std::endl;
+                            index_ungerade++;
+                        }
+                        else{
+                            datafile << index_gerade << '\t' << "G" << '\t' << eigval_gerade[index_gerade] << std::endl;
+                            index_gerade++;
+                        }
+                        index_sum = index_gerade + index_ungerade;
+                    }
+                }
+                datafile.close();
             }
 
             void export_vqe_integrals(std::string filename){

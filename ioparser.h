@@ -18,7 +18,7 @@
 
 namespace input{
 
-    const int NUM_COMM = 15;                    //Total number of available commands
+    const int NUM_COMM = 16;                    //Total number of available commands
     std::string COMMAND_LIST[NUM_COMM] ={       //Commands list
         "NROT",
         "NUM-MIN",
@@ -34,7 +34,8 @@ namespace input{
         "ABS-INTEG-COUPLED",
         "REL-INTEG-COUPLED",
         "QAG-KEY-COUPLED",
-        "SAVE-VQE"
+        "SAVE-VQE",
+        "SAVE-EIGVAL-LIST"
     };
 
     template <class T>
@@ -61,7 +62,7 @@ namespace input{
     class INPUT_PARSER{
         private:
             std::string filename;
-            bool init_flag, load_flag, vqe_key;
+            bool init_flag, load_flag, vqe_key, eigval_list_key;
             int num_rot, num_dihed, npt_int_single, npt_int_coupled, key_single, key_coupled;
             double abs_single, rel_single, abs_coupled, rel_coupled;
             int *basis_single, *basis_coupled, *num_mins;
@@ -108,7 +109,7 @@ namespace input{
                 key_single = 6; key_coupled = 6;
                 abs_single = 1e-10; rel_single = 1e-10;
                 abs_coupled = 1e-10; rel_coupled = 1e-10;
-                vqe_key = false;
+                vqe_key = false; eigval_list_key = false;
             }
 
         public:
@@ -221,6 +222,9 @@ namespace input{
                             case 14:
                                 std::stringstream(line) >> vqe_key;
                                 break;
+                            case 15:
+                                std::stringstream(line) >> eigval_list_key;
+                                break;
                             default:
                                 break;
                         }
@@ -258,8 +262,9 @@ namespace input{
                 }
             }
 
-            void get_vqe_settings(bool& vqe_key_){
+            void get_general_settings(bool& vqe_key_, bool& eigval_list_key_){
                 vqe_key_ = vqe_key;
+                eigval_list_key_ = eigval_list_key;
             }
     };
 

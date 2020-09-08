@@ -29,6 +29,9 @@ int main(int argc, char** argv){
     int N_rot = datafile.load();                        //Set total number of rotors
     int N = N_rot-1;                                    //Number od dihedral angles
 
+    bool vqe_key = false, eigval_save_key = false;
+    datafile.get_general_settings(vqe_key, eigval_save_key);
+
     double * D = new double [N_rot];                    //Allocate an array to store the diffusion coefficients for each rotor
     double * dihedral_barrier = new double [N];         //Allocate an array to store the barrier height for each dihedral
     int * dihedral_num_mins = new int [N];              //Allocate an array to store the type of potential function for each dihedral
@@ -147,8 +150,6 @@ int main(int argc, char** argv){
     
     rotors::COUPLED_SOLVER System_Solver(N, D, composite_basis_set_cutoff, Isolated_Basis_Set, npt_int_system, abs_int_system, rel_int_system, key_int_system);
 
-    bool vqe_key = false;
-    datafile.get_vqe_settings(vqe_key);
     if(vqe_key==true){
         System_Solver.solve(true, false);
     }
@@ -171,6 +172,11 @@ int main(int argc, char** argv){
         System_Solver.export_vqe_integrals(vqe_filename);
     }
     
+    if(eigval_save_key==true){
+        std::string eigval_filesname = base_dir + "/eigval_list.txt";
+        System_Solver.export_eigenval_list(eigval_filesname);
+    }
+
     delete[] D;
     delete[] dihedral_barrier;
     delete[] dihedral_num_mins;
