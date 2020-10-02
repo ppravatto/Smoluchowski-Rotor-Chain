@@ -163,6 +163,9 @@ int main(int argc, char** argv){
     
     if(scan_flag==true || locked_scan_flag==true){
 
+        ofstream scan_file;
+        scan_file.open("scan_report.txt");
+
         if(start_scan>end_scan){
             int buffer = end_scan;
             end_scan = start_scan;
@@ -244,6 +247,8 @@ int main(int argc, char** argv){
             }
             cout << endl << endl;
             
+            scan_file << scan_counter << '\t' << basis_num << '\t' << scientific << setprecision(14) << System_Solver.get_subspace_eigenval(0, false) << endl;
+
             if(vqe_key==true){
                 string vqe_filename = base_dir + "/VQE_" + to_string(basis_num) + ".txt";
                 System_Solver.export_vqe_integrals(vqe_filename);
@@ -255,7 +260,7 @@ int main(int argc, char** argv){
             }
 
         }
-
+        scan_file.close();
         delete[] scan_cutoff;
     }
     else{
