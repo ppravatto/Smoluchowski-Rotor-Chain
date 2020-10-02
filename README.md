@@ -72,3 +72,31 @@ Keyword | Description | Number of parameters | Type | Default value
 `QAG-KEY-COUPLED` | GSL key for selecting the QAG integrator order for the rotor chain | 1 | `int` | 6
 `SAVE-VQE` | Setting the flag to `1` or `0` activate or deactivate the generation of a file containing the matrix of sFPS operator integrals on the composite basis set | 1 | `bool` (as `0` or `1`) | 0
 `SAVE-EIGVAL-LIST` | Setting the flag to `1` or `0` activate or deactivate the generation of a file containing all the eigenvalues computed for the system | 1 | `bool` (as `0` or `1`) | 0
+`SINGLE-COUPLED_SCAN` | Setup a basis-set dimension scan for a defined dihedral (for more informations see the "Independent coupled basis scan keyword" section) | 4 | `integer list` | -
+`LOCKED-COUPLED_SCAN` | Setup a basis-set dimension scan for all dihedral (for more informations see the "Locked coupled basis scan keyword" section) | 3 | `integer list` | -
+
+### Independent coupled basis scan keyword
+The `SINGLE-COUPLED-SCAN` keyword can be used to set up a scan on the number of basis functions for each dihedral angle. The function varies the basis set cutoff for the selected dihedral and overrides the corresponent`SINGLE-COUPLED-BASIS` instruction. The following four `integer` syntax can be used:
+```
+# SINGLE-COUPLED-SCAN
+<dihedral number>, <initial basis set>, <final basis set>, <step>
+```
+For example the instruction:
+```
+# SINGLE-COUPLED-SCAN
+0, 4, 7, 1
+```
+will run a calculation for `4`, `5`, `6`, `7` basis functions for the first rotor of the chain while keeping the number of basis function constant for the remaining rotors. Multiple scan instructions are not implemented at the moment, subsequent calls to `SINGLE-COUPLED-SCAN` will override all previous instructions except the last one. If the user want to scan all dihedral simultaneousy the keyword `LOCKED-COUPLED-SCAN` must be used (see next section for more details).
+
+### Locked coupled basis scan keyword
+The `LOCKED-COUPLED-SCAN` keyword can be used to set up a scan on the number of basis functions for all the dihedral angles in the chain. The function varies the basis set cutoff for all the dihedrals and overrides the corresponent`COUPLED-BASIS` instruction. The following three `integer` syntax can be used:
+```
+# LOCKED-COUPLED-SCAN
+<initial basis set>, <final basis set>, <step>
+```
+For example the instruction:
+```
+# LOCKED-COUPLED-SCAN
+4, 7, 1
+```
+will run a calculation setting the cutoff for all dihedral basis to `4`, `5`, `6`, `7`.

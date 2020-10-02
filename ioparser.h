@@ -18,7 +18,7 @@
 
 namespace input{
 
-    const int NUM_COMM = 16;                    //Total number of available commands
+    const int NUM_COMM = 18;                    //Total number of available commands
     std::string COMMAND_LIST[NUM_COMM] ={       //Commands list
         "NROT",
         "NUM-MIN",
@@ -35,7 +35,9 @@ namespace input{
         "REL-INTEG-COUPLED",
         "QAG-KEY-COUPLED",
         "SAVE-VQE",
-        "SAVE-EIGVAL-LIST"
+        "SAVE-EIGVAL-LIST",
+        "SINGLE-COUPLED-SCAN",
+        "LOCKED-COUPLED-SCAN"
     };
 
     template <class T>
@@ -62,10 +64,10 @@ namespace input{
     class INPUT_PARSER{
         private:
             std::string filename;
-            bool init_flag, load_flag, vqe_key, eigval_list_key;
+            bool init_flag, load_flag, vqe_key, eigval_list_key, scan_flag, locked_scan_flag;
             int num_rot, num_dihed, npt_int_single, npt_int_coupled, key_single, key_coupled;
             double abs_single, rel_single, abs_coupled, rel_coupled;
-            int *basis_single, *basis_coupled, *num_mins;
+            int *basis_single, *basis_coupled, *num_mins, *scan_settings, *locked_scan_settings;
             double *diffusion, *barrier;
 
         protected:
@@ -157,6 +159,8 @@ namespace input{
                     exit(EXIT_FAILURE);
                 }
                 init_flag = true;
+                scan_flag = false;
+                locked_scan_flag = false;
             }
 
             ~INPUT_PARSER(){
@@ -166,6 +170,12 @@ namespace input{
                     delete[] num_mins;
                     delete[] barrier;
                     delete[] diffusion;
+                }
+                if(scan_flag==true){
+                    delete[] scan_settings;
+                }
+                if(locked_scan_flag==true){
+                    delete[] locked_scan_settings;
                 }
             }
 
@@ -225,6 +235,26 @@ namespace input{
                             case 15:
                                 std::stringstream(line) >> eigval_list_key;
                                 break;
+                            case 16:
+                                scan_flag = true;
+                                scan_settings = new int[4];
+                                read_list_line<int>(line, ",", scan_settings, 4);
+                                if(scan_settings[3]==0){
+                                    std::cout << "WARNING (input-parser): The scan step cannot be zero" << std::endl;
+                                    std::cout << "                        -> Setting the step to 1" << std::endl;
+                                    scan_settings[3] = 1;
+                                }
+                                break;
+                            case 17:
+                                locked_scan_flag = true;
+                                locked_scan_settings = new int[3];
+                                read_list_line<int>(line, ",", locked_scan_settings, 3);
+                                if(locked_scan_settings[2]==0){
+                                    std::cout << "WARNING (input-parser): The scan step cannot be zero" << std::endl;
+                                    std::cout << "                        -> Setting the step to 1" << std::endl;
+                                    locked_scan_settings[2] = 1;
+                                }
+                                break;
                             default:
                                 break;
                         }
@@ -232,6 +262,12 @@ namespace input{
                 }
                 input.close();
                 load_flag = true;
+                if(scan_flag==true && locked_scan_flag==true){
+                    std::cout << "WARNING (input-parser): Conflicting scan instructions were given in the input file" << std::endl;
+                    std::cout << "                        -> Only the locked scan will be performed" << std::endl;
+                    delete[] scan_settings;
+                    scan_flag = false;
+                }
                 return num_rot;
             }
 
@@ -262,12 +298,34 @@ namespace input{
                 }
             }
 
-            void get_general_settings(bool& vqe_key_, bool& eigval_list_key_){
+            void get_general_settings(bool& vqe_key_, bool& eigval_list_key_, bool& scan_flag_, bool& locked_scan_flag_){
                 vqe_key_ = vqe_key;
                 eigval_list_key_ = eigval_list_key;
+                scan_flag_ = scan_flag;
+                locked_scan_flag_ = locked_scan_flag;
+            }
+
+            void coupled_scan_settings(int& dihedral_, int& start_, int& final_, int& step_){
+                if(scan_flag==false){
+                    std::cout << "ERROR (input-parser): Single dihedral scan has not been set" << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                dihedral_ = scan_settings[0];
+                start_ = scan_settings[1];
+                final_ = scan_settings[2];
+                step_ = scan_settings[3];
+            }
+
+            void coupled_locked_scan_settings(int& start_, int& final_, int& step_){
+                if(locked_scan_flag==false){
+                    std::cout << "ERROR (input-parser): Locked multiple dihedral scan has not been set" << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                start_ = locked_scan_settings[0];
+                final_ = locked_scan_settings[1];
+                step_ = locked_scan_settings[2];
             }
     };
-
 }
 
 namespace output{

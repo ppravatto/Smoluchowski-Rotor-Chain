@@ -13,24 +13,24 @@ using namespace std;
 int main(int argc, char** argv){
 
     if(argc==1){
-        std::cout << "ERROR (main.cpp): No input file selected" << std::endl;
+        cout << "ERROR (main.cpp): No input file selected" << endl;
         exit(EXIT_FAILURE);
     }
-    std::string filename = argv[1];
-    std::cout << "Selected input file: " << filename << std::endl << std::endl;
+    string filename = argv[1];
+    cout << "Selected input file: " << filename << endl << endl;
 
     if(argc>2){
-        std::cout << "WARNING (main.cpp): Too many arguments received, only the first will be considered" << std::endl;
+        cout << "WARNING (main.cpp): Too many arguments received, only the first will be considered" << endl;
     }
 
-    std::string base_dir = output::get_current_dir();
+    string base_dir = output::get_current_dir();
 
     input::INPUT_PARSER datafile(filename);             //Load input file with the input parser
     int N_rot = datafile.load();                        //Set total number of rotors
     int N = N_rot-1;                                    //Number od dihedral angles
 
-    bool vqe_key = false, eigval_save_key = false;
-    datafile.get_general_settings(vqe_key, eigval_save_key);
+    bool vqe_key = false, eigval_save_key = false, scan_flag = false, locked_scan_flag = false;
+    datafile.get_general_settings(vqe_key, eigval_save_key, scan_flag, locked_scan_flag);
 
     double * D = new double [N_rot];                    //Allocate an array to store the diffusion coefficients for each rotor
     double * dihedral_barrier = new double [N];         //Allocate an array to store the barrier height for each dihedral
@@ -46,7 +46,36 @@ int main(int argc, char** argv){
                                 dihedral_barrier,
                                 D
                             );
-    
+
+    int scan_index=-1, start_scan=0, end_scan=0, step_scan=0;
+    if(scan_flag==true){
+        datafile.coupled_scan_settings(scan_index, start_scan, end_scan, step_scan);
+        if(start_scan > single_dihedral_basis_order[scan_index] || end_scan > single_dihedral_basis_order[scan_index]){
+            cout << "ERROR (main.cpp): The selected single dihedral basis set is smaller than the required scan range" << endl;
+            exit(EXIT_FAILURE);
+        }
+    }
+    else if(locked_scan_flag==true){
+        datafile.coupled_locked_scan_settings(start_scan, end_scan, step_scan);
+        int min_single_basis = single_dihedral_basis_order[0];
+        for(int i=0; i<N; i++){
+            if(single_dihedral_basis_order[i] < min_single_basis){
+                min_single_basis = single_dihedral_basis_order[i];
+            }
+        }
+        if(start_scan > min_single_basis || end_scan > min_single_basis){
+            cout << "ERROR (main.cpp): The selected single dihedral basis set is smaller than the required scan range" << endl;
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    if((scan_flag==true || locked_scan_flag==true) && start_scan==end_scan){
+        cout << "WARNING (main.cpp): The start point in a scan instruction cannot be equal to the end point" << endl;
+        cout << "                    -> Falling back to regular single point calculation" << endl;
+        scan_flag = false;
+        locked_scan_flag = false;
+    }
+
     //Retrieve integration parameters for the single dihedral from input parser 
     int npt_int_single, key_int_single;
     double abs_int_single, rel_int_single;
@@ -74,7 +103,6 @@ int main(int argc, char** argv){
     }
 
     int single_dihedral_print = 5;                          //Number of single dihedral eigenvalues to print
-    int coupled_dihedral_print = (M<10)? int(M/2)-1 : 5;    //Number of coupled dihedrals eigenvalues to print
     for(int i=0; i<N; i++){
         if(single_dihedral_basis_order[i] < single_dihedral_print){
             single_dihedral_print = single_dihedral_basis_order[i];
@@ -89,7 +117,7 @@ int main(int argc, char** argv){
     cout << "GSL QAG key: " << key_int_single << endl;
     cout << "Max integral errors:" << endl;
     cout << " -> Absolute: " << abs_int_single << endl;
-    cout << " -> Relative: " << rel_int_single << endl;
+    cout << " -> Relative: " << rel_int_single << endl << endl;
     cout << "DIHEDRAL ANGLES TABLE:" << endl;
     cout << "-----------------------------------------------------------------" << endl;
     cout << "| " << setw(3) << "i)" << " |" << setw(6) << "mins" << " |" <<
@@ -132,49 +160,158 @@ int main(int argc, char** argv){
     cout << "Max integral errors:" << endl;
     cout << " -> Absolute: " << abs_int_system << endl;
     cout << " -> Relative: " << rel_int_system << endl;
-    cout << "Number of composite basis functions: " << M << endl << endl;
-    cout << "DIHEDRAL ANGLES TABLE:" << endl;
-    cout << "-----------------------------------------------------------------" << endl;
-    cout << "| " << setw(3) << "i)" << " |" << setw(6) << "mins" << " |" <<
-        setw(6) << "N set" << " |" << setw(12) << "Barrier" << " |" <<
-        setw(12) << "D(i-1)" << " |" << setw(12) << "D(i)" << " |" << endl;
-    cout << "-----------------------------------------------------------------" << endl;
-    for(int i=0; i<N; i++){
-        string label = to_string(i+1) + ")";
-        cout << "| " << setw(3) << label << " |" << setw(6) << dihedral_num_mins[i] <<
-        " |" << setw(6) << composite_basis_set_cutoff[i] << " |" << scientific << setprecision(4)
-        << setw(12) << dihedral_barrier[i] << " |" << setw(12) << D[i] <<
-         " |" << setw(12) << D[i+1] << " |" << endl;
-    }
-    cout << "-----------------------------------------------------------------" << endl << endl;
     
-    rotors::COUPLED_SOLVER System_Solver(N, D, composite_basis_set_cutoff, Isolated_Basis_Set, npt_int_system, abs_int_system, rel_int_system, key_int_system);
+    if(scan_flag==true || locked_scan_flag==true){
 
-    if(vqe_key==true){
-        System_Solver.solve(true, false);
+        ofstream scan_file;
+        scan_file.open("scan_report.txt");
+
+        if(start_scan>end_scan){
+            int buffer = end_scan;
+            end_scan = start_scan;
+            start_scan = buffer;
+            step_scan = abs(step_scan);
+        }
+
+        cout << "=================================================================" << endl;
+        cout << "            COUPLED ROTOR CALCULATION - SCAN MODE" << endl;
+        cout << "=================================================================" << endl << endl;
+        string scan_mode = (scan_flag==true)? "single" : "locked";
+        cout << "Scan mode: " << scan_mode;
+        if(scan_flag==true){
+            cout << ", Selected dihedral: " << scan_index;
+        }
+        cout << endl;
+        cout << "Start basis: " << start_scan << ", End basis: " << end_scan << ", Scan: " << step_scan << endl;
+
+        int * scan_cutoff = new int [N];
+        int scan_counter = 0;
+        for(int basis_num=start_scan; basis_num<=end_scan; basis_num=basis_num+step_scan){
+            scan_counter++;
+
+            if(scan_flag==true){
+                math_utils::copy_array<int>(composite_basis_set_cutoff, scan_cutoff, N);
+                scan_cutoff[scan_index] = basis_num;
+            }
+            else{
+                for(int i=0; i<N; i++){
+                    scan_cutoff[i] = basis_num;
+                }
+            }
+
+            M = 1;
+            for(int i=0; i < N; i++){
+                if(scan_cutoff[i] >= int(INT_MAX/M)){
+                    cout << "ERROR (main.cpp): Integer overflow in generating the total number of basis functions (SCAN)" << endl;
+                    exit(EXIT_FAILURE);
+                }
+                M *= scan_cutoff[i];
+            }
+            int coupled_dihedral_print = (M<10)? int(M/2)-1 : 5;    //Number of coupled dihedrals eigenvalues to print
+
+            rotors::COUPLED_SOLVER System_Solver(N, D, scan_cutoff, Isolated_Basis_Set, npt_int_system, abs_int_system, rel_int_system, key_int_system);
+
+            if(vqe_key==true){
+                System_Solver.solve(true, false);
+            }
+            else{
+                System_Solver.solve();
+            }    
+            
+            cout << "=================================================================" << endl;
+            cout << "                          SCAN STEP " << scan_counter << endl;
+            cout << "=================================================================" << endl;
+            cout << "Scan basis set dimension: " << basis_num << endl;
+            cout << "Number of composite basis functions: " << M << endl;
+            cout << "DIHEDRAL ANGLES TABLE:" << endl;
+            cout << "-----------------------------------------------------------------" << endl;
+            cout << "| " << setw(3) << "i)" << " |" << setw(6) << "mins" << " |" <<
+                setw(6) << "N set" << " |" << setw(12) << "Barrier" << " |" <<
+                setw(12) << "D(i-1)" << " |" << setw(12) << "D(i)" << " |" << endl;
+            cout << "-----------------------------------------------------------------" << endl;
+            for(int i=0; i<N; i++){
+                string label = to_string(i+1) + ")";
+                cout << "| " << setw(3) << label << " |" << setw(6) << dihedral_num_mins[i] <<
+                " |" << setw(6) << scan_cutoff[i] << " |" << scientific << setprecision(4)
+                << setw(12) << dihedral_barrier[i] << " |" << setw(12) << D[i] <<
+                " |" << setw(12) << D[i+1] << " |" << endl;
+            }
+            cout << "-----------------------------------------------------------------" << endl;
+            cout << "                  *** SYSTEM EIGENVALUES *** "<< endl;
+            cout << "-----------------------------------------------------------------" << endl;
+            cout << scientific << setprecision(10);
+            cout << setw(3) << "N" << setw(20) << "GERADE     " << setw(20) << "UNGERADE    " << endl;
+            cout << "-----------------------------------------------------------------" << endl;
+            for(int j=0; j<coupled_dihedral_print; j++){
+                cout << setw(3) << j << setw(20) << System_Solver.get_subspace_eigenval(j, true) << setw(20) << System_Solver.get_subspace_eigenval(j, false) << endl;
+            }
+            cout << endl << endl;
+            
+            scan_file << scan_counter << '\t' << basis_num << '\t' << scientific << setprecision(14) << System_Solver.get_subspace_eigenval(0, false) << endl;
+
+            if(vqe_key==true){
+                string vqe_filename = base_dir + "/VQE_" + to_string(basis_num) + ".txt";
+                System_Solver.export_vqe_integrals(vqe_filename);
+            }
+
+            if(eigval_save_key==true){
+                string eigval_filesname = base_dir + "/eigval_list_" + to_string(basis_num) + ".txt";
+                System_Solver.export_eigenval_list(eigval_filesname);
+            }
+
+        }
+        scan_file.close();
+        delete[] scan_cutoff;
     }
     else{
-        System_Solver.solve();
-    }    
-    
-    cout << "SYSTEM EIGENVALUES:" << endl;
-    cout << "-----------------------------------------------------------------" << endl;
-    cout << scientific << setprecision(10);
-    cout << setw(3) << "N" << setw(20) << "GERADE     " << setw(20) << "UNGERADE    " << endl;
-    cout << "-----------------------------------------------------------------" << endl;
-    for(int j=0; j<coupled_dihedral_print; j++){
-        cout << setw(3) << j << setw(20) << System_Solver.get_subspace_eigenval(j, true) << setw(20) << System_Solver.get_subspace_eigenval(j, false) << endl;
-    }
-    cout << "-----------------------------------------------------------------" << endl << endl;
-    
-    if(vqe_key==true){
-        std::string vqe_filename = base_dir + "/VQE.txt";
-        System_Solver.export_vqe_integrals(vqe_filename);
-    }
-    
-    if(eigval_save_key==true){
-        std::string eigval_filesname = base_dir + "/eigval_list.txt";
-        System_Solver.export_eigenval_list(eigval_filesname);
+
+        cout << "Number of composite basis functions: " << M << endl << endl;
+
+        cout << "DIHEDRAL ANGLES TABLE:" << endl;
+        cout << "-----------------------------------------------------------------" << endl;
+        cout << "| " << setw(3) << "i)" << " |" << setw(6) << "mins" << " |" <<
+            setw(6) << "N set" << " |" << setw(12) << "Barrier" << " |" <<
+            setw(12) << "D(i-1)" << " |" << setw(12) << "D(i)" << " |" << endl;
+        cout << "-----------------------------------------------------------------" << endl;
+        for(int i=0; i<N; i++){
+            string label = to_string(i+1) + ")";
+            cout << "| " << setw(3) << label << " |" << setw(6) << dihedral_num_mins[i] <<
+            " |" << setw(6) << composite_basis_set_cutoff[i] << " |" << scientific << setprecision(4)
+            << setw(12) << dihedral_barrier[i] << " |" << setw(12) << D[i] <<
+            " |" << setw(12) << D[i+1] << " |" << endl;
+        }
+        cout << "-----------------------------------------------------------------" << endl << endl;
+
+        int coupled_dihedral_print = (M<10)? int(M/2)-1 : 5;    //Number of coupled dihedrals eigenvalues to print
+
+        rotors::COUPLED_SOLVER System_Solver(N, D, composite_basis_set_cutoff, Isolated_Basis_Set, npt_int_system, abs_int_system, rel_int_system, key_int_system);
+
+        if(vqe_key==true){
+            System_Solver.solve(true, false);
+        }
+        else{
+            System_Solver.solve();
+        }    
+        
+        cout << "SYSTEM EIGENVALUES:" << endl;
+        cout << "-----------------------------------------------------------------" << endl;
+        cout << scientific << setprecision(10);
+        cout << setw(3) << "N" << setw(20) << "GERADE     " << setw(20) << "UNGERADE    " << endl;
+        cout << "-----------------------------------------------------------------" << endl;
+        for(int j=0; j<coupled_dihedral_print; j++){
+            cout << setw(3) << j << setw(20) << System_Solver.get_subspace_eigenval(j, true) << setw(20) << System_Solver.get_subspace_eigenval(j, false) << endl;
+        }
+        cout << "-----------------------------------------------------------------" << endl << endl;
+        
+        if(vqe_key==true){
+            string vqe_filename = base_dir + "/VQE.txt";
+            System_Solver.export_vqe_integrals(vqe_filename);
+        }
+        
+        if(eigval_save_key==true){
+            string eigval_filesname = base_dir + "/eigval_list.txt";
+            System_Solver.export_eigenval_list(eigval_filesname);
+        }
     }
 
     delete[] D;
