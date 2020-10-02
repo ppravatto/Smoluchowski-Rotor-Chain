@@ -186,7 +186,7 @@ int main(int argc, char** argv){
 
         int * scan_cutoff = new int [N];
         int scan_counter = 0;
-        for(int basis_num=start_scan; basis_num<=end_scan; basis_num=basis_num+start_scan){
+        for(int basis_num=start_scan; basis_num<=end_scan; basis_num=basis_num+step_scan){
             scan_counter++;
 
             if(scan_flag==true){
