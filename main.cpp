@@ -29,8 +29,12 @@ int main(int argc, char** argv){
     int N_rot = datafile.load();                        //Set total number of rotors
     int N = N_rot-1;                                    //Number od dihedral angles
 
-    bool vqe_key = false, eigval_save_key = false, scan_flag = false, locked_scan_flag = false;
-    datafile.get_general_settings(vqe_key, eigval_save_key, scan_flag, locked_scan_flag);
+    bool vqe_key = false, eigval_save_key = false, scan_flag = false, locked_scan_flag = false, debug_key = false;
+    datafile.get_general_settings(vqe_key, eigval_save_key, scan_flag, locked_scan_flag, debug_key);
+
+    if(debug_key == true){
+        cout << "                          *** DEBUG MODE ***" << endl;
+    }
 
     double * D = new double [N_rot];                    //Allocate an array to store the diffusion coefficients for each rotor
     double * dihedral_barrier = new double [N];         //Allocate an array to store the barrier height for each dihedral
@@ -148,6 +152,30 @@ int main(int argc, char** argv){
         }
         cout << "-----------------------------------------------------------------" << endl << endl;
         Isolated_Basis_Set[i] = solver;
+        if(debug_key == true){
+            string debug_filename = "iso_" + to_string(i) + ".txt";
+            ofstream debug_file;
+            debug_file.open(debug_filename);
+            int N_even = (single_dihedral_basis_order[i]%2==0)? single_dihedral_basis_order[i]/2 : 1+((single_dihedral_basis_order[i]-1)/2);
+            int N_odd = (single_dihedral_basis_order[i]%2==0)? single_dihedral_basis_order[i]/2 : (single_dihedral_basis_order[i]-1)/2;
+            debug_file << "# EVEN SUBSPACE" << endl;
+            for(int c=0; c<N_even; c++){
+                debug_file << c;
+                for(int r=0; r<N_even; r++){
+                    debug_file << '\t' << scientific << setprecision(12) << solver.get_subspace_eigvect(r, c, true);
+                }
+                debug_file << endl;
+            }
+            debug_file << "# ODD SUBSPACE" << endl;
+            for(int c=0; c<N_odd; c++){
+                debug_file << c;
+                for(int r=0; r<N_odd; r++){
+                    debug_file << '\t' << scientific << setprecision(12) << solver.get_subspace_eigvect(r, c, false);
+                }
+                debug_file << endl;
+            }
+            debug_file.close();
+        }
     }
 
     //COUPLED SOLVER SECTION
@@ -311,6 +339,47 @@ int main(int argc, char** argv){
         if(eigval_save_key==true){
             string eigval_filesname = base_dir + "/eigval_list.txt";
             System_Solver.export_eigenval_list(eigval_filesname);
+        }
+
+        if(debug_key == true){
+            ofstream debug_file("comp.txt");
+            int N_gerade = System_Solver.get_number_of_comp_functions(true);
+            int N_ungerade = System_Solver.get_number_of_comp_functions(false);
+            debug_file << "# GERADE COMPOSITE BASIS FUNCTIONS" << endl;
+            for(int i=0; i<N_gerade; i++){
+                debug_file << i;
+                int *order_list = new int [N];
+                bool *parity_list = new bool [N];
+                System_Solver.get_base_function_composition(i, true, order_list, parity_list);
+                for(int d=0; d<N; d++){
+                    debug_file << '\t' << order_list[d];
+                }
+                for(int d=0; d<N; d++){
+                    int parity_index = (parity_list[d] == true)? 1 : -1;
+                    debug_file << '\t' << parity_index;
+                }
+                debug_file << '\n';
+                delete[] order_list;
+                delete[] parity_list;
+            }
+            debug_file << "# UNGERADE COMPOSITE BASIS FUNCTIONS" << endl;
+            for(int i=0; i<N_ungerade; i++){
+                debug_file << i;
+                int *order_list = new int [N];
+                bool *parity_list = new bool [N];
+                System_Solver.get_base_function_composition(i, false, order_list, parity_list);
+                for(int d=0; d<N; d++){
+                    debug_file << '\t' << order_list[d];
+                }
+                for(int d=0; d<N; d++){
+                    int parity_index = (parity_list[d] == true)? 1 : -1;
+                    debug_file << '\t' << parity_index;
+                }
+                debug_file << '\n';
+                delete[] order_list;
+                delete[] parity_list;
+            }
+            debug_file.close();
         }
     }
 

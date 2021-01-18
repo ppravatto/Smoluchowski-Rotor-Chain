@@ -18,7 +18,7 @@
 
 namespace input{
 
-    const int NUM_COMM = 18;                    //Total number of available commands
+    const int NUM_COMM = 19;                    //Total number of available commands
     std::string COMMAND_LIST[NUM_COMM] ={       //Commands list
         "NROT",
         "NUM-MIN",
@@ -37,7 +37,8 @@ namespace input{
         "SAVE-VQE",
         "SAVE-EIGVAL-LIST",
         "SINGLE-COUPLED-SCAN",
-        "LOCKED-COUPLED-SCAN"
+        "LOCKED-COUPLED-SCAN",
+        "DEBUG"
     };
 
     template <class T>
@@ -64,7 +65,7 @@ namespace input{
     class INPUT_PARSER{
         private:
             std::string filename;
-            bool init_flag, load_flag, vqe_key, eigval_list_key, scan_flag, locked_scan_flag;
+            bool init_flag, load_flag, vqe_key, eigval_list_key, scan_flag, locked_scan_flag, debug_key;
             int num_rot, num_dihed, npt_int_single, npt_int_coupled, key_single, key_coupled;
             double abs_single, rel_single, abs_coupled, rel_coupled;
             int *basis_single, *basis_coupled, *num_mins, *scan_settings, *locked_scan_settings;
@@ -111,7 +112,7 @@ namespace input{
                 key_single = 6; key_coupled = 6;
                 abs_single = 1e-10; rel_single = 1e-10;
                 abs_coupled = 1e-10; rel_coupled = 1e-10;
-                vqe_key = false; eigval_list_key = false;
+                vqe_key = false; eigval_list_key = false; debug_key = false;
             }
 
         public:
@@ -255,6 +256,9 @@ namespace input{
                                     locked_scan_settings[2] = 1;
                                 }
                                 break;
+                            case 18:
+                                std::stringstream(line) >> debug_key;
+                                break;  
                             default:
                                 break;
                         }
@@ -298,11 +302,12 @@ namespace input{
                 }
             }
 
-            void get_general_settings(bool& vqe_key_, bool& eigval_list_key_, bool& scan_flag_, bool& locked_scan_flag_){
+            void get_general_settings(bool& vqe_key_, bool& eigval_list_key_, bool& scan_flag_, bool& locked_scan_flag_, bool& debug_key_){
                 vqe_key_ = vqe_key;
                 eigval_list_key_ = eigval_list_key;
                 scan_flag_ = scan_flag;
                 locked_scan_flag_ = locked_scan_flag;
+                debug_key_ = debug_key;
             }
 
             void coupled_scan_settings(int& dihedral_, int& start_, int& final_, int& step_){

@@ -476,13 +476,23 @@ namespace rotors{
                 return get_parity(order);
             }
 
+            int get_number_of_comp_functions(bool parity){
+                return (parity==true)? N_gerade : N_ungerade;
+            }
+
+            void get_base_function_composition(int index, bool parity, int* order_list, bool* parity_list){
+                int N_limit = (parity==true)? N_gerade : N_ungerade;
+                check_access_errors(index, N_limit);
+                int effective_index = (parity==true)? gerade_list[index] : ungerade_list[index];
+                order_decomposition(effective_index, order_list, parity_list);
+            }
+
             double get_matrix_element(int row, int col, bool element_parity){
                 int N_limit = (element_parity==true)? N_gerade : N_ungerade;
                 check_access_errors(row, N_limit);
                 check_access_errors(col, N_limit);
                 int effective_row = (element_parity==true)? gerade_list[row] : ungerade_list[row];
                 int effective_col = (element_parity==true)? gerade_list[col] : ungerade_list[col];
-                
                 int *order_list_row, *order_list_col;
                 bool *parity_list_row, *parity_list_col;
                 try{
