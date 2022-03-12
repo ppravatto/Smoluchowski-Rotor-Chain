@@ -1,6 +1,9 @@
 # Smoluchowski-Rotor-Chain
 Smoluchowski-Rotor-Chain is a simple C++ program devoted to the diffusive simulation of a chain of hydrodynamically independent 2D rotors interacting with a nearest-neighbour potential. The software solves the Symmetrized Fokker-Planck-Smoluchowski eigenvalue problem by expansion over a basis set.
 
+### How to cite this code
+This code can be used and modified freely under the GPL-3.0 License. If you use this code please cite the URL of this repository and the paper: [Pierpaolo Pravatto et al 2021 New J. Phys. 23 123045](https://iopscience.iop.org/article/10.1088/1367-2630/ac3ff9/meta)
+
 ## Requirements
 * [gcc (g++)](https://gcc.gnu.org/) 9.3
 * [CBLAS](http://www.netlib.org/blas/) 3.8
